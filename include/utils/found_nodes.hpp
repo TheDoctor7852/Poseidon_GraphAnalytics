@@ -24,14 +24,14 @@ namespace utils{
         FoundNodes(int number_of_nodes, T default_value);
     };
 
+
     /*
     initialisiert den Vector mit der gegebenen Länge. Alle Einträge sind zu Begin der übergebene default_value.
     */
     template<typename T>
     FoundNodes<T>::FoundNodes(int number_of_nodes, T default_value){
         found_nodes = std::vector<T>(number_of_nodes, default_value);
-    }
-    
+    } 
 }
 
 #endif //FOUND_NODES_HPP
