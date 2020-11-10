@@ -31,7 +31,7 @@ namespace analytics{
         Führt eine Tiefensuche durch, die alle vom Startknoten aus erreichbaren Knoten findet.
         Rückgabe ist hierbei ein Vector der alle durchlaufenen Kanten enthält, welche sich hierbei im partial_vec befinden.
     */
-    void dfs_recursive (graph_db_ptr& graph, node::id_t start, utils::FoundNodes& found, std::vector<relationship*>& partial_vec);
+    void dfs_recursive (graph_db_ptr& graph, node::id_t start, utils::FoundNodes<bool>& found, std::vector<relationship*>& partial_vec);
 
     /*
         Diese Funktion wird von dfs verwendet. Sollte man also eine normale Tiefensuche durchführen wollen, ist es ratsam dfs zu verwenden.
@@ -41,7 +41,7 @@ namespace analytics{
         Führt eine Tiefensuche durch, die alle vom Startknoten aus erreichbaren Endknoten findet.
         Rückgabe ist hierbei ein Vector der alle durchlaufenen Kanten enthält, welche sich hierbei im partial_vec befinden.
     */
-    void dfs_recursive (graph_db_ptr& graph, node::id_t start, utils::FoundNodes& found, std::vector<relationship*>& partial_vec,std::vector<node::id_t>& end, bool& found_endnode);
+    void dfs_recursive (graph_db_ptr& graph, node::id_t start, utils::FoundNodes<bool>& found, std::vector<relationship*>& partial_vec,std::vector<node::id_t>& end, bool& found_endnode);
 
 }
 

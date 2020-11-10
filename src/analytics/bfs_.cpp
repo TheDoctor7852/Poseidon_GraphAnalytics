@@ -6,7 +6,7 @@
   Rückgabe ist hierbei ein Vector der alle durchlaufenen Kanten enthält. 
 */
 std::vector<relationship*> analytics::bfs(graph_db_ptr& graph, node::id_t start){
-    utils::FoundNodes found = utils::FoundNodes(graph->get_nodes()->as_vec().capacity());
+    utils::FoundNodes<bool> found = utils::FoundNodes<bool>(graph->get_nodes()->as_vec().capacity(), false);
     std::queue<node::id_t> active_nodes;
     std::vector<relationship*> result;
 
@@ -35,7 +35,7 @@ std::vector<relationship*> analytics::bfs(graph_db_ptr& graph, node::id_t start)
 */
 std::vector<relationship*> analytics::bfs(graph_db_ptr& graph, node::id_t start, std::vector<node::id_t>& end){
     bool found_end_node = false;
-    utils::FoundNodes found = utils::FoundNodes(graph->get_nodes()->as_vec().capacity());
+    utils::FoundNodes<bool> found = utils::FoundNodes<bool>(graph->get_nodes()->as_vec().capacity(), false);
     std::queue<node::id_t> active_nodes;
     std::vector<relationship*> result;
 

@@ -6,7 +6,7 @@
   Rückgabe ist hierbei ein Vector der alle durchlaufenen Kanten enthält.
 */
 std::vector<relationship*> analytics::dfs(graph_db_ptr& graph, node::id_t start){
-  utils::FoundNodes found = utils::FoundNodes(graph->get_nodes()->as_vec().capacity());
+  utils::FoundNodes<bool> found = utils::FoundNodes<bool>(graph->get_nodes()->as_vec().capacity(), false);
   std::vector<relationship*> partial_vec = {};
   found.found_nodes[start] = true;
   dfs_recursive(graph, start, found, partial_vec);
@@ -20,7 +20,7 @@ std::vector<relationship*> analytics::dfs(graph_db_ptr& graph, node::id_t start)
 */
 std::vector<relationship*> analytics::dfs(graph_db_ptr& graph, node::id_t start, std::vector<node::id_t>& end){
   bool found_endnode = false;
-  utils::FoundNodes found = utils::FoundNodes(graph->get_nodes()->as_vec().capacity());
+  utils::FoundNodes<bool> found = utils::FoundNodes<bool>(graph->get_nodes()->as_vec().capacity(), false);
   std::vector<relationship*> partial_vec = {};
   if(std::find(end.begin(), end.end(), start) == end.end()){
     found.found_nodes[start] = true;
@@ -41,7 +41,7 @@ std::vector<relationship*> analytics::dfs(graph_db_ptr& graph, node::id_t start,
   Führt eine Tiefensuche durch, die alle vom Startknoten aus erreichbaren Knoten findet.
   Rückgabe ist hierbei ein Vector der alle durchlaufenen Kanten enthält, welche sich hierbei im partial_vec befinden.
 */
-void analytics::dfs_recursive (graph_db_ptr& graph, node::id_t start, utils::FoundNodes& found, std::vector<relationship*>& partial_vec){
+void analytics::dfs_recursive (graph_db_ptr& graph, node::id_t start, utils::FoundNodes<bool>& found, std::vector<relationship*>& partial_vec){
   graph->foreach_from_relationship_of_node(graph->node_by_id(start),[&] (relationship& r) {
         node::id_t to_node = r.to_node_id();
         if((!found.found_nodes[to_node])){
@@ -60,7 +60,7 @@ void analytics::dfs_recursive (graph_db_ptr& graph, node::id_t start, utils::Fou
   Führt eine Tiefensuche durch, die alle vom Startknoten aus erreichbaren Endknoten findet.
   Rückgabe ist hierbei ein Vector der alle durchlaufenen Kanten enthält, welche sich hierbei im partial_vec befinden.
 */
-void analytics::dfs_recursive (graph_db_ptr& graph, node::id_t start, utils::FoundNodes& found, std::vector<relationship*>& partial_vec,std::vector<node::id_t>& end, bool& found_endnode){
+void analytics::dfs_recursive (graph_db_ptr& graph, node::id_t start, utils::FoundNodes<bool>& found, std::vector<relationship*>& partial_vec,std::vector<node::id_t>& end, bool& found_endnode){
   if(found_endnode){
     return;
   } else{
