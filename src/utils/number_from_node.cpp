@@ -10,6 +10,6 @@ int utils::readNumberFromString(std::string node_desc){
     do{
         number += node_desc[i];
         i++;
-    } while(node_desc[i] == ']');
+    } while(node_desc[i] != ']');
   return std::stoi(number);
 }
