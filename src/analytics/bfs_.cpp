@@ -87,8 +87,8 @@ std::vector<relationship*> analytics::bfs(graph_db_ptr& graph, node::id_t start,
     int size = result.data.size();
     for(int i=0; i<size; i++){
         boost::apply_visitor(det, result.data.front()[0]);
-        if (det.getMem().success){
-            IDvec.push_back(utils::readNumberFromString(det.getMem().content));
+        if (det.getMemString().success){
+            IDvec.push_back(utils::readNumberFromString(det.getMemString().content));
         }
         result.data.pop_front();
     }

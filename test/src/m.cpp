@@ -5,77 +5,219 @@
 #include "bfs_.hpp"
 #include "dfs.hpp"
 
+#include "property_tracker.hpp"
+#include "number_from_nodestring.hpp"
+#include "visitor.hpp"
+#include "query.hpp"
+#include <algorithm>
+#include <random>
+
+struct LabelReturn{
+  std::vector<node::id_t> used_nodes;
+  utils::PropertyTracker<node::id_t> label; // hierführ wird Standarkonstruktor gebraucht oder: LabelReturn(std::vector<node::id_t> nodes, utils::PropertyTracker<node::id_t> l) : label(0,0) {}
+
+  LabelReturn(std::vector<node::id_t> nodes, utils::PropertyTracker<node::id_t> l){
+    used_nodes = nodes;
+    label = l;
+  }
+};
+
+struct RelationshipWeight{
+  relationship* rel;
+  double weight;
+
+  RelationshipWeight(relationship* r, double w){
+    rel = r;
+    weight = w;
+  }
+};
+
+std::vector<RelationshipWeight> determin_max_values(std::vector<RelationshipWeight>& from_node){
+  std::vector<RelationshipWeight> result = {};
+  bool found_max_last_round = true;
+  RelationshipWeight max = RelationshipWeight(nullptr,0);
+  int position_of_max_ele = 0;
+
+  while ((found_max_last_round) && (!from_node.empty())){
+    found_max_last_round = false;
+    auto max_entry = std::max_element(from_node.begin(),from_node.end(),[] (const RelationshipWeight &a, const RelationshipWeight &b) {
+      return a.weight < b.weight;
+    });
+    position_of_max_ele = std::distance(from_node.begin(), max_entry);
+    if(max.weight<=from_node[position_of_max_ele].weight){
+      max = from_node[position_of_max_ele];
+      result.push_back(max);
+      found_max_last_round = true;
+      from_node.erase(from_node.begin() + position_of_max_ele);
+    }
+  }
+  return result;
+};
+
+std::vector<std::vector<RelationshipWeight>> create_max_weight_matrix(graph_db_ptr& graph, std::vector<node::id_t>& nodes, std::string property, double default_value){
+  node::id_t active_node = 0;
+  std::vector<std::vector<RelationshipWeight>> result = {};
+  std::vector<RelationshipWeight> from_node = {};
+  std::vector<RelationshipWeight> ret = {};
+  utils::Visitor vis;
+
+  for(int i=0; i<nodes.size(); i++){
+    node::id_t active_node = nodes[i];
+    graph->foreach_from_relationship_of_node(graph->node_by_id(active_node), [&] (relationship& r) {
+        if(graph->get_rship_description(r.id()).has_property(property)){
+          boost::apply_visitor(vis, graph->get_rship_description(r.id()).properties.at(property));
+          if(vis.getMemDouble().success){
+            from_node.push_back(RelationshipWeight(&r,vis.getMemDouble().content));
+          }
+        } else{
+          from_node.push_back(RelationshipWeight(&r,default_value)); // sollte die Kante nicht die Property haben, wird der default_value verwendet 
+        }
+      });
+    result.push_back(determin_max_values(from_node));
+    //hier aufgehört
+  }
+};
+
+LabelReturn labelPropagation(graph_db_ptr& graph, std::string property, double default_value, bool max = true, int max_runs = 50){
+  //benutze trozdem mal das, da, wenn Knoten löscht eine leere Stelle da ist. -> alle nachfolgenden Knoten sind um 1 nach vorne gerückt
+  utils::PropertyTracker<node::id_t> label = utils::PropertyTracker<node::id_t>(graph->get_nodes()->as_vec().capacity(),0);
+  std::vector<node::id_t> nodes = {};
+  std::vector<RelationshipWeight> from_node = {};
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  utils::Visitor vis;
+  node::id_t active_node;
+  RelationshipWeight active_relationship = RelationshipWeight(nullptr,0);
+  bool did_change_last_run = true;
+  int number_of_turns = 0;
+
+  result_set rs;
+  query q = query(graph)
+              .all_nodes("Node")
+              .project({PExpr_(0, builtin::string_rep(res))})
+              .collect(rs);
+    q.start();
+    rs.wait();
+  while(!rs.data.empty()){
+    boost::apply_visitor(vis, rs.data.front()[0]);
+    if (vis.getMemString().success){
+        active_node = utils::readNumberFromString(vis.getMemString().content);
+        nodes.push_back(active_node);
+      }
+    rs.data.pop_front();
+  }
+  for(size_t i=0; i<nodes.size(); i++){
+    label.propertys[i] = nodes[i];
+  }
+
+  while(did_change_last_run && (number_of_turns < max_runs)){
+    std::random_shuffle(nodes.begin(), nodes.end());
+    did_change_last_run = false;
+    for(size_t i=0; i< nodes.size(); i++){
+      active_node = nodes[i];
+      graph->foreach_from_relationship_of_node(graph->node_by_id(active_node), [&] (relationship& r) {
+        if(graph->get_rship_description(r.id()).has_property(property)){
+          boost::apply_visitor(vis, graph->get_rship_description(r.id()).properties.at(property));
+          if(vis.getMemDouble().success){
+            from_node.push_back(RelationshipWeight(&r,vis.getMemDouble().content));
+          }
+        } else{
+          from_node.push_back(RelationshipWeight(&r,default_value)); // sollte die Kante nicht die Property haben, wird der default_value verwendet 
+        }
+      });
+      if (!from_node.empty()){
+        std::uniform_int_distribution<int> dist(0,from_node.size()-1);
+        active_relationship = from_node[dist(rng)];
+        if(label.propertys[active_node] != label.propertys[active_relationship->to_node_id()]){
+          did_change_last_run = true;
+        }
+        label.propertys[active_node] = label.propertys[active_relationship->to_node_id()];
+      }
+      from_node.clear();
+    }
+    number_of_turns++;
+  }
+
+  std::cout << "Schleife durchlaufen: " << number_of_turns << std::endl;
+  return LabelReturn(nodes, label);
+}
+
+LabelReturn labelPropagation(graph_db_ptr& graph, int max_runs = 50){
+  //benutze trozdem mal das, da, wenn Knoten löscht eine leere Stelle da ist. -> alle nachfolgenden Knoten sind um 1 nach vorne gerückt
+  utils::PropertyTracker<node::id_t> label = utils::PropertyTracker<node::id_t>(graph->get_nodes()->as_vec().capacity(),0);
+  std::vector<node::id_t> nodes = {};
+  std::vector<relationship*> from_node = {};
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  utils::Visitor vis;
+  node::id_t active_node;
+  relationship* active_relationship = nullptr;
+  bool did_change_last_run = true;
+  int number_of_turns = 0;
+
+  result_set rs;
+  query q = query(graph)
+              .all_nodes("Node")
+              .project({PExpr_(0, builtin::string_rep(res))})
+              .collect(rs);
+    q.start();
+    rs.wait();
+  while(!rs.data.empty()){
+    boost::apply_visitor(vis, rs.data.front()[0]);
+    if (vis.getMemString().success){
+        active_node = utils::readNumberFromString(vis.getMemString().content);
+        nodes.push_back(active_node);
+      }
+    rs.data.pop_front();
+  }
+  for(size_t i=0; i<nodes.size(); i++){
+    label.propertys[i] = nodes[i];
+  }
+
+  while(did_change_last_run && (number_of_turns < max_runs)){
+    std::random_shuffle(nodes.begin(), nodes.end());
+    did_change_last_run = false;
+    for(size_t i=0; i< nodes.size(); i++){
+      active_node = nodes[i];
+      graph->foreach_from_relationship_of_node(graph->node_by_id(active_node), [&] (relationship& r) {
+        from_node.push_back(&r);
+      });
+      if (!from_node.empty()){
+        std::uniform_int_distribution<int> dist(0,from_node.size()-1);
+        active_relationship = from_node[dist(rng)];
+        if(label.propertys[active_node] != label.propertys[active_relationship->to_node_id()]){
+          did_change_last_run = true;
+        }
+        label.propertys[active_node] = label.propertys[active_relationship->to_node_id()];
+      }
+      from_node.clear();
+    }
+    number_of_turns++;
+  }
+
+  std::cout << "Schleife durchlaufen: " << number_of_turns << std::endl;
+  return LabelReturn(nodes, label);
+}
+
+void Label_Test(){
+  auto pool = graph_pool::open("./graph/pool"); 
+  auto graph = pool->open_graph("Label_Prop_Test"); 
+
+  auto tx = graph->begin_transaction();
+
+  LabelReturn result = labelPropagation(graph);
+  for(size_t i=0; i<result.used_nodes.size(); i++){
+    std::cout << "Knoten:  " << graph->get_node_description(result.used_nodes[i]).properties.at("name") << "    hat Label:    " << result.label.propertys[result.used_nodes[i]] << std::endl;
+  }
+
+  graph->abort_transaction();
+  pool->close();
+
+}
 
 void test() {
   auto pool = graph_pool::open("./graph/pool"); 
   auto graph = pool->open_graph("my_graph"); 
-
-  /*auto tx = graph->begin_transaction();
-  
-  namespace pj = builtin;
-
-    result_set rs;
-    query q = query(graph)
-              //.nodes_where("Node", "id", [&] (auto &p) {return p.equal(4);} )
-              .nodes_where("Node", "name", [&] (auto &p) {return p.equal(graph->get_code("aaa1"));} )
-              //.all_nodes("Node")
-              //.property("name", [&] (auto &p) {return p.equal(graph->get_code("aaa5"));})
-              .property("other", [&](auto &p) { return p.equal(graph->get_code("BBB1")); }) //ist wie die WHERE clausel bei SQL bzw. Cypher
-              .project({PExpr_(0, pj::string_property(res, "name")), 
-                        PExpr_(0, pj::string_rep(res))}) // gibt den Konten als eine STring representation zurück. Diese begint mit Node[node_id] -> aus diesem String kann man die node id extrahieren
-              .limit(3)
-              .collect(rs);
-    q.start();
-
-    rs.wait(); 
-
-    //graph->nodes_where("name", [&](auto &p) { return p.name == "aaa7"; });
-    //auto &n=graph->node_by_id(rs.data.front()[0]);
-    //std::cout << n.property_list << std::endl;
-
-    if(rs.data.size() == 0){
-      std::cout << "empty" << std::endl;
-    }
-    if(rs.data.size() == 1){
-        std::cout << rs.data.front()[0] << std::endl;//boost::apply_visitor(Printer(), rs.data.front()[0]);
-        std::cout << rs.data.front()[1] << std::endl;
-    }
-    if(rs.data.size() == 3){
-        std::cout << "geschafft" << std::endl;
-        std::cout << rs.data.front()[0] << std::endl;//boost::apply_visitor(Printer(), rs.data.front()[0]);
-    }
-    //int node_id = std::stoi(boost::any_cast<std::string>(boost::any(rs.data.front()[1])).substr(5,1));
-    Determiner det;
-    boost::apply_visitor(det, rs.data.front()[1]);
-    if (det.getMem().success){
-      std::cout << "node id: " << readNumberFromString(det.getMem().content) << std::endl;
-    }
-    std::vector<node::id_t> end;
-    end.push_back(5);
-    std::vector<relationship*> path = bfs(graph, readNumberFromString(det.getMem().content), end);
-    for(std::size_t i=0; i<path.size(); i++){
-      std::cout << path[i]->from_node_id() << "  --->  " << path[i]->to_node_id() << std::endl;
-    }
-    if(path.empty()){
-      std::cout << "no path" << std::endl;
-    }
-    std::cout << "bfs without end:" << std::endl;
-    path = bfs(graph, readNumberFromString(det.getMem().content));
-    for(std::size_t i=0; i<path.size(); i++){
-      std::cout << path[i]->from_node_id() << "  --->  " << path[i]->to_node_id() << std::endl;
-    }
-    if(path.empty()){
-      std::cout << "no path" << std::endl;
-    }
-    std::cout << "dfs without end:" << std::endl;
-    path = dfs(graph, readNumberFromString(det.getMem().content));
-    for(std::size_t i=0; i<path.size(); i++){
-      std::cout << path[i]->from_node_id() << "  --->  " << path[i]->to_node_id() << std::endl;
-    }
-    if(path.empty()){
-      std::cout << "no path" << std::endl;
-    }
-    graph->abort_transaction();*/
 
     auto tx = graph->begin_transaction();
 
@@ -116,10 +258,92 @@ void test() {
       std::cout << "no path" << std::endl;
     }
     
+    LabelReturn result = labelPropagation(graph);
+    for(size_t i=0; i<result.used_nodes.size(); i++){
+      std::cout << "Knoten:  " << i << "    hat Label:    " << result.label.propertys[result.used_nodes[i]] << std::endl;
+    }
+
     graph->abort_transaction();
+    pool->close();
+
+    Label_Test();
+}
+
+void expand_test_graph(){
+  auto pool = graph_pool::open("./graph/pool");
+  auto graph = pool->open_graph("Label_Prop_Test");
+
+  auto tx = graph->begin_transaction();
+
+  auto Q = graph->add_node("Node",{{"name", boost::any(std::string("Q"))}});
+  auto R = graph->add_node("Node",{{"name", boost::any(std::string("R"))}});
+  auto S = graph->add_node("Node",{{"name", boost::any(std::string("S"))}});
+  auto T = graph->add_node("Node",{{"name", boost::any(std::string("T"))}});
+
+  graph->add_relationship(Q,R,"KNOW",{{"values", boost::any(4)}});
+  graph->add_relationship(Q,S,"KNOW",{{"values", boost::any(2)}});
+  graph->add_relationship(R,S,"KNOW",{{"values", boost::any(2)}});
+
+  graph->commit_transaction();
+  pool->close();
+
+}
+
+void create_labelprop_testgraph(){
+  auto pool = graph_pool::open("./graph/pool");
+  auto graph = pool->create_graph("Label_Prop_Test");
+
+  auto tx = graph->begin_transaction();
+
+  auto A = graph->add_node("Node",{{"name", boost::any(std::string("A"))}});
+  auto B = graph->add_node("Node",{{"name", boost::any(std::string("B"))}});
+  auto C = graph->add_node("Node",{{"name", boost::any(std::string("C"))}});
+  auto D = graph->add_node("Node",{{"name", boost::any(std::string("D"))}});
+  auto E = graph->add_node("Node",{{"name", boost::any(std::string("E"))}});
+  auto F = graph->add_node("Node",{{"name", boost::any(std::string("F"))}});
+  auto G = graph->add_node("Node",{{"name", boost::any(std::string("G"))}});
+  auto H = graph->add_node("Node",{{"name", boost::any(std::string("H"))}});
+  auto I = graph->add_node("Node",{{"name", boost::any(std::string("I"))}});
+  auto J = graph->add_node("Node",{{"name", boost::any(std::string("J"))}});
+  auto L = graph->add_node("Node",{{"name", boost::any(std::string("L"))}});
+  auto M = graph->add_node("Node",{{"name", boost::any(std::string("M"))}});
+  auto N = graph->add_node("Node",{{"name", boost::any(std::string("N"))}});
+  auto O = graph->add_node("Node",{{"name", boost::any(std::string("O"))}});
+  auto P = graph->add_node("Node",{{"name", boost::any(std::string("P"))}});
+
+  graph->add_relationship(A,B,"KNOW",{{"values", boost::any(4)}});
+  graph->add_relationship(A,D,"KNOW",{{"values", boost::any(2)}});
+  graph->add_relationship(B,C,"KNOW",{{"values", boost::any(2)}});
+  graph->add_relationship(C,A,"KNOW",{{"values", boost::any(5)}});
+  graph->add_relationship(C,F,"KNOW",{{"values", boost::any(1)}});
+  graph->add_relationship(D,C,"KNOW",{{"values", boost::any(2)}});
+  graph->add_relationship(D,E,"KNOW",{{"values", boost::any(3)}});
+  graph->add_relationship(E,A,"KNOW",{{"values", boost::any(3)}});
+  graph->add_relationship(E,C,"KNOW",{{"values", boost::any(3)}});
+  graph->add_relationship(F,G,"KNOW",{{"values", boost::any(1)}});
+  graph->add_relationship(G,J,"KNOW",{{"values", boost::any(3)}});
+  graph->add_relationship(G,I,"KNOW",{{"values", boost::any(4)}});
+  graph->add_relationship(H,G,"KNOW",{{"values", boost::any(2)}});
+  graph->add_relationship(H,J,"KNOW",{{"values", boost::any(3)}});
+  graph->add_relationship(I,H,"KNOW",{{"values", boost::any(2)}});
+  graph->add_relationship(J,I,"KNOW",{{"values", boost::any(5)}});
+  graph->add_relationship(L,N,"KNOW",{{"values", boost::any(2)}});
+  graph->add_relationship(L,O,"KNOW",{{"values", boost::any(3)}});
+  graph->add_relationship(M,L,"KNOW",{{"values", boost::any(2)}});
+  graph->add_relationship(M,N,"KNOW",{{"values", boost::any(2)}});
+  graph->add_relationship(N,O,"KNOW",{{"values", boost::any(3)}});
+  graph->add_relationship(N,P,"KNOW",{{"values", boost::any(4)}});
+  graph->add_relationship(O,P,"KNOW",{{"values", boost::any(1)}});
+  graph->add_relationship(P,L,"KNOW",{{"values", boost::any(2)}});
+  graph->add_relationship(P,M,"KNOW",{{"values", boost::any(3)}});
+
+  graph->commit_transaction();
+  pool->close();
 }
 
 int main(){
   test();
+  //create_labelprop_testgraph();
+  //expand_test_graph();
   return 0;
 }

@@ -6,6 +6,7 @@
 #include "boost/variant.hpp"
 #include "boost/any.hpp"
 #include "graph_pool.hpp"
+#include "return_double.hpp"
 #include "return_string.hpp"
 
     namespace utils{
@@ -33,12 +34,12 @@
                 /*
                     wird ausgeführt, sollte die boost::variant vom Typ: integer sein
                 */
-                void operator() (int & i) const;
+                void operator() (int & i);
 
                 /*
                     wird ausgeführt, sollte die boost::variant vom Typ: double sein
                 */
-                void operator() (double & d) const;
+                void operator() (double & d);
 
                 /*
                     wird ausgeführt, sollte die boost::variant vom Typ: string sein
@@ -62,10 +63,17 @@
 
                 /*
                     Versucht das gespeicherte boost::any Objekt in einen String umzuwandeln.
-                    Bei Erfolg wird ein returnString Object mit success=true und content=(der String) zurückgegeben
-                    Bei Misserfolg wird ein returnString Object mit success=false und content=(die Exception) zurückgegeben
+                    Bei Erfolg wird ein returnString Objekt mit success = true und content = (der String) zurückgegeben
+                    Bei Misserfolg wird ein returnString Objekt mit success=false und content=(die Exception) zurückgegeben
                 */
-                returnString getMem();
+                returnString getMemString();
+                
+                /*
+                    Versucht das gespeicherte boost::any Objekt in einen Double umzuwandeln.
+                    Bei Erfolg wird ein returnDouble Objekt mit success = true und content = (der Wert) zurückgegeben
+                    Bei Misserfolg wird ein returnDouble Objekt mit success = false und content = 0 zurückgegeben
+                */
+                returnDouble getMemDouble();
         };
     }
 

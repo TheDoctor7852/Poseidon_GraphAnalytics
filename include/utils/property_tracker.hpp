@@ -18,11 +18,23 @@ namespace utils{
         std::vector<T> propertys;
 
         /*
+            Standard Konstruktor. Initialisiert einen leeren Vector vom Typ T.
+        */
+        PropertyTracker();
+
+        /*
             initialisiert den Vector mit der gegebenen Länge. Alle Einträge sind zu Begin der übergebene default_value.
         */
         PropertyTracker(int number_of_nodes, T default_value);
     };
 
+    /*
+        Standard Konstruktor. Initialisiert einen leeren Vector vom Typ T.
+    */
+    template<typename T>
+    PropertyTracker<T>::PropertyTracker(){
+        propertys = std::vector<T>();
+    }
 
     /*
     initialisiert den Vector mit der gegebenen Länge. Alle Einträge sind zu Begin der übergebene default_value.
