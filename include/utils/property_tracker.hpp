@@ -37,7 +37,7 @@ namespace utils{
     }
 
     /*
-    initialisiert den Vector mit der gegebenen Länge. Alle Einträge sind zu Begin der übergebene default_value.
+        initialisiert den Vector mit der gegebenen Länge. Alle Einträge sind zu Begin der übergebene default_value.
     */
     template<typename T>
     PropertyTracker<T>::PropertyTracker(int number_of_nodes, T default_value){
