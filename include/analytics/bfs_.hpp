@@ -6,7 +6,7 @@
 #include <queue>
 #include <vector>
 
-#include "found_nodes.hpp"
+#include "property_tracker.hpp"
 #include "graph_pool.hpp"
 #include "number_from_nodestring.hpp"
 #include "qop.hpp"

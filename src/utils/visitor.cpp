@@ -17,15 +17,15 @@ void utils::Visitor::operator() (relationship* r) const {
 /*
     wird ausgeführt, sollte die boost::variant vom Typ: integer sein
 */
-void utils::Visitor::operator() (int & i) const {
-    std::cout << "integer" << std::endl;
+void utils::Visitor::operator() (int & i) {
+   mem = i;
 }
 
 /*
     wird ausgeführt, sollte die boost::variant vom Typ: double sein
 */
-void utils::Visitor::operator() (double & d) const {
-    std::cout << "double" << std::endl;
+void utils::Visitor::operator() (double & d) {
+    mem = d;
 }
 
 /*
@@ -61,10 +61,22 @@ void utils::Visitor::operator() (null_t & nullt) const {
     Bei Erfolg wird ein returnString Object mit success=true und content=(der String) zurückgegeben
     Bei Misserfolg wird ein returnString Object mit success=false und content=(die Exception) zurückgegeben
 */
-utils::returnString utils::Visitor::getMem(){ 
+utils::returnString utils::Visitor::getMemString(){ 
     try{
         return returnString(true, boost::any_cast<std::string>(mem));
       } catch(std::exception& e){
           return returnString(false, e.what());
+      } 
+    }
+/*
+    Versucht das gespeicherte boost::any Objekt in einen Double umzuwandeln.
+    Bei Erfolg wird ein returnDouble Objekt mit success = true und content = (der Wert) zurückgegeben
+    Bei Misserfolg wird ein returnDouble Objekt mit success = false und content = 0 zurückgegeben
+*/
+utils::returnDouble utils::Visitor::getMemDouble(){ 
+    try{
+        return returnDouble(true, boost::any_cast<double>(mem));
+      } catch(std::exception& e){
+          return returnDouble(false, 0);
       } 
     }
