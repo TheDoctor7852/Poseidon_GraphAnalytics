@@ -133,7 +133,7 @@ void initialiseActiveNodesAndLabel(graph_db_ptr& graph, std::vector<node::id_t>&
 
     result_set rs;
     query q = query(graph)
-              .all_nodes("Node")
+              .all_nodes()
               .project({PExpr_(0, builtin::string_rep(res))})
               .collect(rs);
 

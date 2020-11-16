@@ -25,6 +25,7 @@ namespace analytics{
        Die Property bestimmt welches Attribut der Relationships zur Auswertung verwendet wird.
        Sollte eine Relationship diese Property nicht besitzen, wird stadessen der default_value verwendet.
        max gibt an ob nach maximalen oder minimalen Gewichten gesucht werden soll. (max == true) => maximale Kantengewichte, (max == false) => inimale Kantengewichte
+       Änderungen an Kantengewichten werden während der Laufzeit nicht berücksichtigt.
     */
     utils::LabelReturn labelPropagation(graph_db_ptr& graph, std::string property, double default_value, bool max = true, int max_runs = 50);
 
