@@ -9,3 +9,5 @@ obj_dir/return_double.o
 obj_dir/return_string.o
 obj_dir/visitor.o
 test/obj_files/m.o
+obj_dir/pagerank_return.o
+obj_dir/pagerank.o
