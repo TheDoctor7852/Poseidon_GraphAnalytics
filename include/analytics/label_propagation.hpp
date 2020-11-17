@@ -6,11 +6,9 @@
 #include <random>
 
 #include "label_return.hpp"
-#include "number_from_nodestring.hpp"
 #include "property_tracker.hpp"
 #include "query.hpp"
 #include "relationship_weight.hpp"
-#include "visitor.hpp"
 
 namespace analytics{
 
