@@ -3,9 +3,9 @@ CXX_FLAGS := -Wno-unused-local-typedefs -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -W
 CXX_DEFINES := -DBOOST_ALL_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DHAS_BOOST -DUSE_LOGGING -DUSE_PMDK -DUSE_TX
 OBJDIR := ../obj_dir
 SRCDIR := ../src
-PATH_TO_POSEIDON_CORE := /home/jan/Dokumente/Bachelorarbeit/poseidon_core
-POS_COR_SRC := $(PATH_TO_POSEIDON_CORE)/src
-POS_COR_BUILD := $(PATH_TO_POSEIDON_CORE)/build
+PATH_TO_POSEIDON_CORE := /home/jan/Dokumente/poseidon_core#hier der totale oder abstratkte Pfad zu Poseidon
+POS_COR_SRC := $(PATH_TO_POSEIDON_CORE)/src#falls das src-Verzischniss umbenannt wurde auch hier umbenennen
+POS_COR_BUILD := $(PATH_TO_POSEIDON_CORE)/build#falls das build-Verzischniss umbenannt(bzw. anders benannt) wurde auch hier umbenennen
 SRCDIR_ANALYTICS := ../src/analytics
 SRCDIR_UTILS := ../src/utils
 INCLUDE := ../include

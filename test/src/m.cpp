@@ -143,9 +143,9 @@ void test() {
 }
 
 int main(){
-  //test();
-  //Label_Test();
-  //PageRank_Test();
+  test();
+  Label_Test();
+  PageRank_Test();
   //create_pool();
   //create_data();
   //pageRank_small_test_graph();
