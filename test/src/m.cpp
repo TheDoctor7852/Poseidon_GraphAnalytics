@@ -6,108 +6,67 @@
 #include "dfs.hpp"
 #include "label_propagation.hpp"
 #include "label_return.hpp"
-#include "number_from_nodestring.hpp"
+#include "pagerank.hpp"
+#include"pagerank_return.hpp"
 
-#include <limits>
-#include <cmath>
 
-struct PageRankUtil{
-    std::vector<node::id_t> used_nodes;
-    utils::PropertyTracker<double> old_pagerank;
-    utils::PropertyTracker<double> new_pagerank;
-};
+void create_pool();
+void create_data();
+void create_different_label_testgraph();
+void create_labelprop_testgraph();
+void expand_test_graph();
+void pageRank_small_test_graph();
+void pageRank_medium_test_graph();
+void PageRank_example();
 
-struct PageRankReturn{
-    std::vector<node::id_t> used_nodes;
-    utils::PropertyTracker<double> pagerank;
 
-    PageRankReturn(){
-      used_nodes = std::vector<node::id_t>();
-      pagerank = utils::PropertyTracker<double>();
-    }
+void PageRank_Test(){
+  auto pool1 = graph_pool::open("./graph/pool");
+  auto graph1 = pool1->open_graph("PageRank_small_Test");
 
-    PageRankReturn(PageRankUtil input){
-      used_nodes = input.used_nodes;
-      pagerank = input.new_pagerank;
-    }
-}; 
-
-PageRankUtil initialisePageRank(graph_db_ptr& graph){
-  node::id_t active_node;
-  utils::Visitor vis;
-  PageRankUtil result;
-
-    result_set rs;
-    query q = query(graph)
-              .all_nodes()
-              .project({PExpr_(0, builtin::string_rep(res))})
-              .collect(rs);
-
-    q.start();
-    
-    rs.wait();
-
-    while(!rs.data.empty()){
-        boost::apply_visitor(vis, rs.data.front()[0]);
-        if (vis.getMemString().success){
-            active_node = utils::readNumberFromString(vis.getMemString().content);
-            result.used_nodes.push_back(active_node);
-        }
-        rs.data.pop_front();
-    }
-
-    result.old_pagerank = utils::PropertyTracker<double>(graph->get_nodes()->as_vec().capacity(),0);
-    result.new_pagerank = utils::PropertyTracker<double>(graph->get_nodes()->as_vec().capacity(),0);
-
-    for(size_t i=0; i<result.used_nodes.size(); i++){
-      result.old_pagerank.propertys[result.used_nodes[i]] = 1.0/result.used_nodes.size();
-    }
+  auto tx1 = graph1->begin_transaction();
   
-  return result;
-}
-// TODO: erweiterung Fall, dass Knoten keine ausgehenden Kanten hat
-PageRankReturn PageRank(graph_db_ptr& graph, double damping_factor = 0.85, double converge_limit = 0.1, int max_turns = 50){
-
-    int counter = 0;
-    double sum = 0;
-    node::id_t active_node = 0;
-    utils::PropertyTracker<int> num_outgoing_relationships = utils::PropertyTracker<int>(graph->get_nodes()->as_vec().capacity(),0);
-    double max_difference = std::numeric_limits<double>::max();
-
-    if((damping_factor > 1) || (damping_factor < 0)){
-      std::cout << "damping factor needs to be: 0 <= damping_factor <= 1" << std::endl;
-      return PageRankReturn();
-    }else{
-      PageRankUtil current_pagerank = initialisePageRank(graph);
-      for(size_t i = 0; i < current_pagerank.used_nodes.size(); i++){
-        active_node = current_pagerank.used_nodes[i];
-        graph->foreach_from_relationship_of_node(graph->node_by_id(active_node), [&] (relationship& r) {counter++;});
-        num_outgoing_relationships.propertys[active_node] = counter;
-        counter = 0;
-      }
-      counter = 0;
-      while((max_difference >= converge_limit) && (counter<max_turns)){
-        max_difference = 0;
-        for(size_t i = 0; i < current_pagerank.used_nodes.size(); i++){
-          active_node = current_pagerank.used_nodes[i];
-          graph->foreach_to_relationship_of_node(graph->node_by_id(active_node), [&] (relationship& r) {
-            //hier mit if abfragen ob num_outgoing_rel =0, wenn ja, nehme anzhal der Knoten im Graphen und teile dadurch -> Sinks behoben
-            sum = sum + current_pagerank.old_pagerank.propertys[r.from_node_id()]/num_outgoing_relationships.propertys[r.from_node_id()];
-          });
-          current_pagerank.new_pagerank.propertys[active_node] = (1-damping_factor) + (damping_factor*sum);
-          std:: cout << (1-damping_factor) + (damping_factor*sum) << "    ";
-          sum = 0;
-          if(std::abs(current_pagerank.new_pagerank.propertys[active_node]-current_pagerank.old_pagerank.propertys[active_node])>max_difference){
-            max_difference = std::abs(current_pagerank.new_pagerank.propertys[active_node]-current_pagerank.old_pagerank.propertys[active_node]);
-          }
-        }
-      std::cout << max_difference << std::endl;
-      counter++;
-      current_pagerank.old_pagerank.propertys = current_pagerank.new_pagerank.propertys;
-      }
-      std::cout << "Schleife durchlaufen: " << counter << std::endl;
-      return PageRankReturn(current_pagerank);
+  std::cout << "PageRank small example:" << std::endl;
+  
+  utils::PageRankReturn r = analytics::PageRank(graph1);
+  for (size_t s=0; s<r.used_nodes.size(); s++){
+      std::cout << graph1->get_node_description(r.used_nodes[s]).properties.at("name") << "  mit Gewicht: " << r.pagerank.propertys[s] << std::endl;
     }
+  graph1->abort_transaction();
+  pool1->close();
+
+  std::cout << std::endl;
+
+  auto pool2 = graph_pool::open("./graph/pool");
+  auto graph2 = pool2->open_graph("PageRank_medium_Test");
+
+  auto tx2 = graph2->begin_transaction();
+  
+  std::cout << "PageRank medium example:" << std::endl;
+  
+  r = analytics::PageRank(graph2);
+  for (size_t s=0; s<r.used_nodes.size(); s++){
+      std::cout << graph2->get_node_description(r.used_nodes[s]).properties.at("name") << "  mit Gewicht: " << r.pagerank.propertys[s] << std::endl;
+    }
+  graph2->abort_transaction();
+  pool2->close();
+
+  std::cout << std::endl;
+
+  auto pool3 = graph_pool::open("./graph/pool");
+  auto graph3 = pool3->open_graph("PageRank_example_Test");
+
+  auto tx3 = graph3->begin_transaction();
+  
+  std::cout << "PageRank Book example:" << std::endl;
+  
+  r = analytics::PageRank(graph3);
+  for (size_t s=0; s<r.used_nodes.size(); s++){
+      std::cout << graph3->get_node_description(r.used_nodes[s]).properties.at("name") << "  mit Gewicht: " << r.pagerank.propertys[s] << std::endl;
+    }
+  graph3->abort_transaction();
+  pool3->close();
+
 }
 
 void Label_Test(){
@@ -181,8 +140,141 @@ void test() {
 
     graph->abort_transaction();
     pool->close();
+}
 
-    Label_Test();
+int main(){
+  //test();
+  //Label_Test();
+  //PageRank_Test();
+  //create_pool();
+  //create_data();
+  //pageRank_small_test_graph();
+  //pageRank_medium_test_graph();
+  //PageRank_example();
+  //create_different_label_testgraph();
+  //create_labelprop_testgraph();
+  //expand_test_graph();
+  return 0;
+}
+
+/*
+  ein pool muss erzeugt werden, bevor graphen darin gespeichert werden können
+*/
+void create_pool(){
+  auto pool = graph_pool::create("./graph/pool",838860800);
+  pool->close();
+}
+
+void create_data() {
+  auto pool = graph_pool::open("./graph/pool");
+  auto graph = pool->create_graph("my_graph");
+
+  auto tx = graph->begin_transaction();
+
+      graph->add_node("Node", {{"id", boost::any(7)},
+                               {"name", boost::any(std::string("aaa7"))},
+                               {"other", boost::any(std::string("BBB7"))}});
+
+      graph->add_node("Node", {{"id", boost::any(6)},
+                               {"name", boost::any(std::string("aaa6"))},
+                               {"other", boost::any(std::string("BBB6"))}});
+
+      graph->add_node("Node", {{"id", boost::any(5)},
+                               {"name", boost::any(std::string("aaa5"))},
+                               {"other", boost::any(std::string("BBB5"))}});
+
+      graph->add_node("Node", {{"id", boost::any(4)},
+                               {"name", boost::any(std::string("aaa4"))},
+                               {"other", boost::any(std::string("BBB4"))}});
+
+      graph->add_node("Node", {{"id", boost::any(3)},
+                               {"name", boost::any(std::string("aaa3"))},
+                               {"other", boost::any(std::string("BBB3"))}});
+
+      graph->add_node("Node", {{"id", boost::any(2)},
+                               {"name", boost::any(std::string("aaa2"))},
+                               {"other", boost::any(std::string("BBB2"))}});
+
+      graph->add_node("Node", {{"id", boost::any(1)},
+                               {"name", boost::any(std::string("aaa1"))},
+                               {"other", boost::any(std::string("BBB1"))}});
+
+    graph->add_relationship(0,3,"KNOW",{});
+    graph->add_relationship(0,4,"KNOW",{});
+    graph->add_relationship(0,1,"KNOW",{});
+    graph->add_relationship(1,3,"KNOW",{});
+    graph->add_relationship(1,5,"KNOW",{});
+    graph->add_relationship(2,6,"KNOW",{});
+    graph->add_relationship(2,0,"KNOWS",{});
+    graph->add_relationship(2,3,"KNOW",{});
+    graph->add_relationship(3,4,"KNOW",{});
+    graph->add_relationship(3,5,"KNOW",{});
+    graph->add_relationship(4,6,"KNOW",{});
+    graph->add_relationship(4,1,"KNOW",{});
+    graph->add_relationship(5,6,"KNOW",{}); 
+    graph->add_relationship(6,0,"KNOW",{});
+
+  graph->commit_transaction();
+}
+
+void PageRank_example(){
+  // Bsp aus Buch: Graph Algorithms by Amy E. Hodler and Mark Needham  (O'Reilly). ISBN 978-1-492-05781-9
+  auto pool = graph_pool::open("./graph/pool");
+  auto graph = pool->create_graph("PageRank_example_Test");
+
+  auto tx = graph->begin_transaction();
+
+  auto James = graph->add_node("Person",{{"name", boost::any(std::string("James"))}});
+  auto David = graph->add_node("Person",{{"name", boost::any(std::string("David"))}});
+  auto Amy = graph->add_node("Person",{{"name", boost::any(std::string("Amy"))}});
+  auto Charles = graph->add_node("Person",{{"name", boost::any(std::string("Charles"))}});
+  auto Doug = graph->add_node("Person",{{"name", boost::any(std::string("Doug"))}});
+  auto Mark = graph->add_node("Person",{{"name", boost::any(std::string("Mark"))}});
+  auto Alice = graph->add_node("Person",{{"name", boost::any(std::string("Alice"))}});
+  auto Bridget = graph->add_node("Person",{{"name", boost::any(std::string("Bridget"))}});
+  auto Michael = graph->add_node("Person",{{"name", boost::any(std::string("Michael"))}});
+
+  graph->add_relationship(James,David,"FOLLOWS",{});
+  graph->add_relationship(David, Amy, "FOLLOWS",{});
+  graph->add_relationship(Charles,Doug,"FOLLOWS",{});
+  graph->add_relationship(Doug,Mark,"FOLLOWS",{});
+  graph->add_relationship(Mark,Doug,"FOLLOWS",{});
+  graph->add_relationship(Mark,Alice,"FOLLOWS",{});
+  graph->add_relationship(Alice,Doug,"FOLLOWS",{});
+  graph->add_relationship(Alice,Charles,"FOLLOWS",{});
+  graph->add_relationship(Alice,Michael,"FOLLOWS",{});
+  graph->add_relationship(Alice,Bridget,"FOLLOWS",{});
+  graph->add_relationship(Bridget,Alice,"FOLLOWS",{});
+  graph->add_relationship(Bridget,Doug,"FOLLOWS",{});
+  graph->add_relationship(Bridget,Michael,"FOLLOWS",{});
+  graph->add_relationship(Michael,Bridget,"FOLLOWS",{});
+  graph->add_relationship(Michael,Alice,"FOLLOWS",{});
+  graph->add_relationship(Michael,Doug,"FOLLOWS",{});
+
+  graph->commit_transaction();
+  pool->close();
+}
+
+void pageRank_medium_test_graph(){
+  auto pool = graph_pool::open("./graph/pool");
+  auto graph = pool->create_graph("PageRank_medium_Test");
+
+  auto tx = graph->begin_transaction();
+
+  auto A = graph->add_node("Node",{{"name", boost::any(std::string("A"))}});
+  auto B = graph->add_node("Node",{{"name", boost::any(std::string("B"))}});
+  auto C = graph->add_node("Node",{{"name", boost::any(std::string("C"))}});
+  auto D = graph->add_node("Node",{{"name", boost::any(std::string("D"))}});
+  auto E = graph->add_node("Node",{{"name", boost::any(std::string("E"))}});
+
+  graph->add_relationship(A,B,"KNOW",{}); 
+  graph->add_relationship(A,C,"KNOW",{}); 
+  graph->add_relationship(B,A,"KNOW",{});
+  graph->add_relationship(C,B,"KNOW",{});
+  graph->add_relationship(C,D,"KNOW",{});
+
+  graph->commit_transaction();
+  pool->close();
 }
 
 void pageRank_small_test_graph(){
@@ -328,32 +420,6 @@ void create_different_label_testgraph(){
 
   graph->commit_transaction();
   pool->close();
-}
-
-void create_pool(){
-  auto pool = graph_pool::create("./graph/pool",838860800);
-  pool->close();
-}
-
-int main(){
-  //test();
-  //create_pool();
-  //pageRank_small_test_graph();
-  auto pool = graph_pool::open("./graph/pool");
-  auto graph = pool->open_graph("PageRank_small_Test");
-
-  auto tx = graph->begin_transaction();
-
-  PageRankReturn r = PageRank(graph);
-  for (size_t s=0; s<r.used_nodes.size(); s++){
-      std::cout << graph->get_node_description(r.used_nodes[s]).properties.at("name") << "  mit Gewicht: " << r.pagerank.propertys[s] << std::endl;
-    }
-  graph->abort_transaction();
-  pool->close();
-  //create_different_label_testgraph();
-  //create_labelprop_testgraph();
-  //expand_test_graph();
-  return 0;
 }
 
 
