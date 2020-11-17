@@ -1,1 +1,11 @@
 test/graph/pool
+obj_dir/bfs_.o
+obj_dir/dfs.o
+obj_dir/label_propagation.o
+obj_dir/label_return.o
+obj_dir/number_from_node.o
+obj_dir/relationship_weight.o
+obj_dir/return_double.o
+obj_dir/return_string.o
+obj_dir/visitor.o
+test/obj_files/m.o
