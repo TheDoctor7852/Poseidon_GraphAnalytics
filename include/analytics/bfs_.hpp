@@ -8,7 +8,6 @@
 
 #include "property_tracker.hpp"
 #include "graph_pool.hpp"
-#include "number_from_nodestring.hpp"
 #include "qop.hpp"
 #include "query.hpp"
 #include "visitor.hpp"
@@ -35,8 +34,9 @@ namespace analytics{
         Aus dieser Query werden die Endknoten ermittelt.
         Führt eine Breitensuche durch, die stoppt sobald einer der Endknoten gefunden wurde oder es keine weiteren erreichbaren Knoten mehr gibt.
         Rückgabe ist hierbei ein Vector der alle durchlaufenen Kanten enthält. 
-    */
+        (muss noch überarbeitet werden)
     std::vector<relationship*> bfs(graph_db_ptr& graph, node::id_t start, query end);
+    */
 
 }
 

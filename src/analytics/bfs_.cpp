@@ -72,7 +72,7 @@ std::vector<relationship*> analytics::bfs(graph_db_ptr& graph, node::id_t start,
   Aus dieser Query werden die Endknoten ermittelt.
   Führt eine Breitensuche durch, die stoppt sobald einer der Endknoten gefunden wurde oder es keine weiteren erreichbaren Knoten mehr gibt.
   Rückgabe ist hierbei ein Vector der alle durchlaufenen Kanten enthält. 
-*/
+  (muss noch überarbeitet werden)
 std::vector<relationship*> analytics::bfs(graph_db_ptr& graph, node::id_t start, query end){
     result_set result;
     std::vector <node::id_t> IDvec;
@@ -94,3 +94,4 @@ std::vector<relationship*> analytics::bfs(graph_db_ptr& graph, node::id_t start,
     }
   return bfs(graph, start, IDvec);
 }
+*/

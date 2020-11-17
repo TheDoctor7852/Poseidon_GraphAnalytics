@@ -129,26 +129,10 @@ std::vector<std::vector<utils::RelationshipWeight>> create_min_weight_matrix(gra
 void initialiseActiveNodesAndLabel(graph_db_ptr& graph, std::vector<node::id_t>& nodes, utils::PropertyTracker<node::id_t>& label){
 
     node::id_t active_node;
-    utils::Visitor vis;
 
-    result_set rs;
-    query q = query(graph)
-              .all_nodes()
-              .project({PExpr_(0, builtin::string_rep(res))})
-              .collect(rs);
-
-    q.start();
-    
-    rs.wait();
-
-    while(!rs.data.empty()){
-        boost::apply_visitor(vis, rs.data.front()[0]);
-        if (vis.getMemString().success){
-            active_node = utils::readNumberFromString(vis.getMemString().content);
-            nodes.push_back(active_node);
-        }
-        rs.data.pop_front();
-    }
+    graph->nodes([&] (node& n){
+      nodes.push_back(n.id());
+    });
 
     for(size_t i=0; i<nodes.size(); i++){
         label.propertys[i] = nodes[i];
