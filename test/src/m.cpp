@@ -18,7 +18,32 @@ void expand_test_graph();
 void pageRank_small_test_graph();
 void pageRank_medium_test_graph();
 void PageRank_example();
+/*
+  nur innerhalb von transaktionen verwenden sonst speicherzugrifsfehler
+  Problem: gibt jemand ID ein, die nicht gibt, dann gibt Speicherfehler.
+*/
+std::vector<node::id_t> relToNode_recursive(std::vector<relationship*>& input, node::id_t endnodes, int pos){
+  
+  if(endnodes == input[0]->from_node_id()){
+    return {endnodes};
+  }else if(pos<0){
+    return {};
+  }else if(input[pos]->to_node_id() == endnodes){
+    std::vector<node::id_t> v = relToNode_recursive(input,input[pos]->from_node_id(),pos-1);
+    v.push_back(endnodes);
+    return v;
+  }else{
+    return relToNode_recursive(input,endnodes,pos-1);
+  }
+}
 
+std::vector<node::id_t> relToNode(std::vector<relationship*>& input, node::id_t endnodes){
+  if(input.empty()){
+    return {};
+  } else{
+    return relToNode_recursive(input, endnodes, input.size()-1);
+  }
+}
 
 void PageRank_Test(){
   auto pool1 = graph_pool::open("./graph/pool");
@@ -143,17 +168,39 @@ void test() {
 }
 
 int main(){
+  auto pool = graph_pool::open("./graph/pool"); 
+  auto graph = pool->open_graph("my_graph"); 
+
+    auto tx = graph->begin_transaction();
+
+    std::vector<node::id_t> end = {5};
+    std::vector<relationship*> path = analytics::bfs(graph, 0);
+    for(std::size_t i=0; i<path.size(); i++){
+      std::cout << path[i]->from_node_id() << "  --->  " << path[i]->to_node_id() << std::endl;
+    }
+    if(path.empty()){
+      std::cout << "no path" << std::endl;
+    }
+  std::cout << std::endl << std::endl;
+  std::vector<node::id_t> nodes = relToNode(path,7);
+  for(size_t i=0; i<nodes.size(); i++){
+    std::cout << "here" << std::endl;
+      std::cout << nodes[i]<< "  --->  " << nodes[i+1] << std::endl;
+    }
+  graph->abort_transaction();
+  pool->close();
+  
   //test();
   //Label_Test();
   //PageRank_Test();
-  create_pool();
-  create_data();
-  pageRank_small_test_graph();
-  pageRank_medium_test_graph();
-  PageRank_example();
-  create_different_label_testgraph();
-  create_labelprop_testgraph();
-  expand_test_graph();
+  //create_pool();
+  //create_data();
+  //pageRank_small_test_graph();
+  //pageRank_medium_test_graph();
+  //PageRank_example();
+  //create_different_label_testgraph();
+  //create_labelprop_testgraph();
+  //expand_test_graph();
   return 0;
 }
 
