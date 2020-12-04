@@ -13,3 +13,5 @@ obj_dir/pagerank_return.o
 obj_dir/pagerank.o
 build/libgraph_analytics.so
 test/test_m
+test/obj_files/class_test.o
+test/obj_files/galois_test.o

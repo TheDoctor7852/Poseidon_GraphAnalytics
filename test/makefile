@@ -1,4 +1,4 @@
-CXX_FLAGS := -Wno-unused-local-typedefs -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -Wno-unused -pthread  -Wall -Wno-deprecated -O3 -Wsign-compare   -std=c++17
+CXX_FLAGS := -Wno-unused-local-typedefs -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -Wno-unused -pthread -fopenmp -Wall -Wno-deprecated -O3 -Wsign-compare   -std=c++17
 CXX_DEFINES := -DBOOST_ALL_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DHAS_BOOST -DUSE_LOGGING -DUSE_PMDK -DUSE_TX
 OBJDIR := obj_files
 SRCDIR := src
@@ -13,3 +13,15 @@ test_m: $(OBJDIR)/m.o
 
 $(OBJDIR)/m.o: $(SRCDIR)/m.cpp
 	g++ -g $(CXX_FLAGS) $(CXX_DEFINES) $(INC) -I../include/analytics -I../include/utils -o $@ -c $(SRCDIR)/m.cpp
+
+test_par: $(OBJDIR)/class_test.o
+	g++ -g $(CXX_FLAGS) $(OBJDIR)/class_test.o -o test_par $(LINKER_COMMANDS) -L../build -lgraph_analytics -Wl,-rpath,"../build"
+
+$(OBJDIR)/class_test.o: $(SRCDIR)/class_test.cpp
+	g++ -g $(CXX_FLAGS) $(CXX_DEFINES) $(INC) -I../include/analytics -I../include/utils -o $@ -c $(SRCDIR)/class_test.cpp
+
+test_galois: $(OBJDIR)/galois_test.o
+	g++ -g $(CXX_FLAGS) $(OBJDIR)/galois_test.o -o test_par $(LINKER_COMMANDS) -L../build -lgraph_analytics -Wl,-rpath,"../build" -L/home/jan/Dokumente/Bachelorarbeit/Galois/build/libgalois -lgalois_shmem
+
+$(OBJDIR)/galois_test.o: $(SRCDIR)/galois_test.cpp
+	g++ -g $(CXX_FLAGS) $(CXX_DEFINES) $(INC) -I../include/analytics -I../include/utils -I/home/jan/Dokumente/Bachelorarbeit/Galois/libgalois/include/ -o $@ -c $(SRCDIR)/galois_test.cpp

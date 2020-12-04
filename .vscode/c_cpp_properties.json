@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/home/jan/Dokumente/Bachelorarbeit/poseidon_core/src/**",
-                "/home/jan/Dokumente/Bachelorarbeit/poseidon_core/build/**"
+                "/home/jan/Dokumente/Bachelorarbeit/poseidon_core/build/**",
+                "/home/jan/Dokumente/Bachelorarbeit/Galois/libgalois/include/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
