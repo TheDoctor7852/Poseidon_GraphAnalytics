@@ -143,17 +143,17 @@ void test() {
 }
 
 int main(){
-  //test();
-  //Label_Test();
-  //PageRank_Test();
-  create_pool();
-  create_data();
-  pageRank_small_test_graph();
-  pageRank_medium_test_graph();
-  PageRank_example();
-  create_different_label_testgraph();
-  create_labelprop_testgraph();
-  expand_test_graph();
+  test();
+  Label_Test();
+  PageRank_Test();
+  //create_pool();
+  //create_data();
+  //pageRank_small_test_graph();
+  //pageRank_medium_test_graph();
+  //PageRank_example();
+  //create_different_label_testgraph();
+  //create_labelprop_testgraph();
+  //expand_test_graph();
   return 0;
 }
 
