@@ -15,3 +15,5 @@ build/libgraph_analytics.so
 test/test_m
 test/obj_files/class_test.o
 test/obj_files/galois_test.o
+test/test_imp
+test/obj_files/test_imp.o
