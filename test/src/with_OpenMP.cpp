@@ -13,76 +13,6 @@
 #include <future>
 #include <thread_pool.hpp>
 
-class Node{
-    node::id_t id;
-    node::id_t label;
-    std::vector<std::shared_ptr<Node>> neighbours;
-    public:
-    Node(node::id_t ID){
-        id = ID;
-        neighbours = {};
-    }
-    Node(node::id_t ID, node::id_t l){
-        id = ID;
-        label = l;
-        neighbours = {};
-    }
-
-    void add_neighbour(std::shared_ptr<Node> node){
-        neighbours.push_back(node);
-    }
-
-    node::id_t getID(){
-        return id;
-    }
-
-    node::id_t getLabel(){
-        return label;
-    }
-
-    std::vector<std::shared_ptr<Node>> get_neighbours(){
-        return neighbours; 
-    }
-
-    bool update_label(std::shared_ptr<Node> n){
-        if(label != n->getLabel()){
-            label = n->getLabel();
-            return true;
-        }else{
-            return false;
-        }
-    }
-};
-
-class Node_Pool{
-    std::vector<std::shared_ptr<Node>> v;
-    size_t position_of_last;
-    public:
-    Node_Pool(graph_db_ptr& graph){
-        v = std::vector<std::shared_ptr<Node>>(graph->get_nodes()->as_vec().capacity());
-        position_of_last = 0;
-    }
-    
-    std::shared_ptr<Node> return_node_at(size_t i){
-        return v[i];
-    }
-
-    void shuffle_active_pool(){
-        std::random_shuffle(v.begin(), v.begin()+position_of_last+1);
-    }
-
-    size_t size(){
-        return position_of_last+1;
-    }
-
-    void add_Node(std::shared_ptr<Node> n){
-        v[n->getID()] = n;
-        if(n->getID() > position_of_last){
-            position_of_last = n->getID();
-        }
-    }
-};
-
 double convertBoostAnyToDouble(boost::any input){
     try{
         return boost::any_cast<double>(input);
@@ -91,6 +21,10 @@ double convertBoostAnyToDouble(boost::any input){
     }
 }
 
+/*
+    Bekommt einen Vector vom Typ RelationshipWeight übergeben. Ermittelt anhand des weight-Parameters (von RelationshipWeight) die maximalen Elemente.
+    Diese werden dann in einem Vector vom Typ RelationshipWeight zurückgegeben.
+*/
 std::vector<utils::RelationshipWeight> determin_max_values(std::vector<utils::RelationshipWeight>& from_node){
     //initialisiere die benötigten Variablen
     std::vector<utils::RelationshipWeight> result = {};
@@ -115,7 +49,10 @@ std::vector<utils::RelationshipWeight> determin_max_values(std::vector<utils::Re
     return result;
 };
 
-
+/*
+    Bekommt einen Vector vom Typ RelationshipWeight übergeben. Ermittelt anhand des weight-Parameters (von RelationshipWeight) die minimalen Elemente.
+    Diese werden dann in einem Vector vom Typ RelationshipWeight zurückgegeben.
+*/
 std::vector<utils::RelationshipWeight> determin_min_values(std::vector<utils::RelationshipWeight>& from_node){
     //initialisiere die benötigten Variablen
     std::vector<utils::RelationshipWeight> result = {};
@@ -140,33 +77,9 @@ std::vector<utils::RelationshipWeight> determin_min_values(std::vector<utils::Re
     return result;
 };
 
-void create_max_weight_matrix_OO(graph_db_ptr& graph, Node_Pool& nodes, std::string property, double default_value){
-    //initialisiere die benötigten Variablen
-    node::id_t active_node = 0;
-    std::vector<utils::RelationshipWeight> from_node = {};
-    std::vector<utils::RelationshipWeight> ret = {};
-
-    for(size_t i=0; i<nodes.size(); i++){
-        std::shared_ptr<Node> active_node = nodes.return_node_at(i);
-        // sammle alle ausgehenden Relationen des aktuellen Knotens
-        graph->foreach_from_relationship_of_node(graph->node_by_id(active_node->getID()), [&] (relationship& r) {
-            if(graph->get_rship_description(r.id()).has_property(property)){
-                from_node.push_back(utils::RelationshipWeight(&r,convertBoostAnyToDouble(graph->get_rship_description(r.id()).properties.at(property))));
-            } else{
-                // sollte die Kante nicht die Property haben, wird der übergebene default_value verwendet 
-                from_node.push_back(utils::RelationshipWeight(&r,default_value)); 
-            }
-        });
-        //finde die Relationships(Kanten) mit dem maximalen Gewicht
-        ret = determin_max_values(from_node);
-        for(size_t i=0; i<ret.size(); i++){
-            active_node->add_neighbour(nodes.return_node_at(ret[i].rel->to_node_id()));
-        }
-        ret.clear();
-        from_node.clear();
-    }
-};
-
+/*
+    Erstellt eine Matrix, die von jedem Knoten aus die Kante(n) mit dem maximalen Gewicht enthält. Als Gewicht wird hierbei der Wert der übergebenen Property jeder Relation betrachtet.
+*/
 std::vector<std::vector<utils::RelationshipWeight>> create_max_weight_matrix(graph_db_ptr& graph, std::vector<node::id_t>& nodes, std::string property, double default_value){
     //initialisiere die benötigten Variablen
     node::id_t active_node = 0;
@@ -192,7 +105,9 @@ std::vector<std::vector<utils::RelationshipWeight>> create_max_weight_matrix(gra
     return result;
 };
 
-
+/*
+    Erstellt eine Matrix, die von jedem Knoten aus die Kante(n) mit dem minimalen Gewicht enthält. Als Gewicht wird hierbei der Wert der übergebenen Property jeder Relation betrachtet.
+*/
 std::vector<std::vector<utils::RelationshipWeight>> create_min_weight_matrix(graph_db_ptr& graph, std::vector<node::id_t>& nodes, std::string property, double default_value){
     //initialisiere die benötigten Variablen
     node::id_t active_node = 0;
@@ -218,13 +133,6 @@ std::vector<std::vector<utils::RelationshipWeight>> create_min_weight_matrix(gra
     return result;
 };
 
-void initialiseActiveNodesAndLabel_OO(graph_db_ptr& graph, Node_Pool& nodes){
-
-    graph->nodes([&] (node& n){
-      nodes.add_Node(std::make_shared<Node>(n.id(),n.id()));
-    });
-}
-
 void initialiseActiveNodesAndLabel(graph_db_ptr& graph, std::vector<node::id_t>& nodes, utils::PropertyTracker<node::id_t>& label){
 
     node::id_t active_node;
@@ -237,97 +145,57 @@ void initialiseActiveNodesAndLabel(graph_db_ptr& graph, std::vector<node::id_t>&
         label.propertys[i] = nodes[i];
     }
 }
-  //warscheinlich langsamer weil vector geschlossen wird, wenn 1 thread darin liest bzw. wenn 1 thread darin etwas ändert müssen die anderen neu laden (cache wird invalide)
-bool ThreadFunc(Node_Pool* node_pool, size_t start, size_t end){
-  if(start < end){
 
-    std::vector<std::shared_ptr<Node>> active_vector = {};
-    std::shared_ptr<Node> active_relationship = nullptr;
-    bool did_change_last_run = false;
-    bool did_change = false;
-    std::random_device rd;  // mal schauen ob auch als referenz übergeben kann
-    std::mt19937 rng(rd()); // mal schauen ob auch als referenz übergeben kann
-    
-    for(size_t i=start; i < end; i++){
-      active_vector = node_pool->return_node_at(i)->get_neighbours();
-      // wenn es mehrere Kanten mit maximalen bzw. minimalen Gewicht gibt, wird uniform zufällig entschieden. 
-      if (active_vector.size()>1){
-      std::uniform_int_distribution<int> dist(0,active_vector.size()-1);
-      active_relationship = active_vector[dist(rng)];
-        did_change = node_pool->return_node_at(i)->update_label(active_relationship);
-      //sollte es nur eine maximale ausgehende Relationship(Kante) geben, wird diese gewählt.
-      }else if(active_vector.size() == 1){
-        active_relationship = active_vector[0];
-        did_change = node_pool->return_node_at(i)->update_label(active_relationship);
-      }
-      //sollte es keine ausgehenden Kante geben, so wird dieser Knoten vernachlässigt.
-      if(did_change){
-          did_change_last_run = true;
-      }
-    }
-    //std::cout << "Did_change:   " << did_change_last_run << std::endl;
-    return did_change_last_run;//promObj->set_value(did_change_last_run);
-  } else{
-    //std::cout << "default:   " << false << std::endl;
-    return false;//promObj->set_value(false);
-  }
-}
-
-struct Threaded_Thing{
-
-  Node_Pool* node_pool;
-  size_t start;
-  size_t end;
-  Threaded_Thing(Node_Pool* m, size_t s, size_t e){
-    node_pool = m;
-    start = s;
-    end = e;
-  };
-
-  bool operator()(){
-    return ThreadFunc(node_pool, start, end);
-  }
-};
-
-Node_Pool labelPropagation_parallel(graph_db_ptr& graph, std::string property, double default_value, bool max, int max_runs){
-    Node_Pool node_pool = Node_Pool(graph);
+utils::LabelReturn labelPropagation_SIMD(graph_db_ptr& graph, std::string property, double default_value, bool max, int max_runs){
+    //initialisiere die benötigten Variablen
+    utils::PropertyTracker<node::id_t> label = utils::PropertyTracker<node::id_t>(graph->get_nodes()->as_vec().capacity(),0);
+    std::vector<node::id_t> nodes = {};
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    utils::RelationshipWeight active_relationship = utils::RelationshipWeight(nullptr,0);
     bool did_change_last_run = true;
     int number_of_turns = 0;
-    std::vector<size_t> thread_startAndEnd = {0};
-    thread_pool pool = thread_pool();
-    std::vector<std::future<bool>> futures = {};
+    std::vector<std::vector<utils::RelationshipWeight>> matrix;
 
-    initialiseActiveNodesAndLabel_OO(graph,node_pool);
+    initialiseActiveNodesAndLabel(graph, nodes, label);
 
-    create_max_weight_matrix_OO(graph,node_pool,property,default_value);
-
-    for(size_t i=0; i<std::thread::hardware_concurrency(); i++){
-      if(i<(node_pool.size() % std::thread::hardware_concurrency())){
-        thread_startAndEnd.push_back(thread_startAndEnd[i]+1+(node_pool.size()/std::thread::hardware_concurrency()));
-      } else{
-        thread_startAndEnd.push_back(thread_startAndEnd[i]+(node_pool.size()/std::thread::hardware_concurrency()));
-      }
+    //bestimme ob Matrix mit maximalen oder minimalen Gewichten benötigt wird.
+    if(max){
+        matrix = create_max_weight_matrix(graph,nodes,property,default_value);
+    } else{
+        matrix = create_min_weight_matrix(graph,nodes,property,default_value);
     }
 
     auto start = std::chrono::high_resolution_clock::now();
     while(did_change_last_run && (number_of_turns < max_runs)){
         //randomisiere die Reihenfolge, in der die Knoten durchlaufen werden.
-        node_pool.shuffle_active_pool();
+        std::random_shuffle(matrix.begin(), matrix.end());
         did_change_last_run = false;
-        for(int i=0;i<thread_startAndEnd.size()-1;i++){
-          std::future<bool> f = (pool.submit(Threaded_Thing(&node_pool, thread_startAndEnd[i], thread_startAndEnd[i+1])));
-          futures.push_back(std::move(f));
+        #pragma omp simd 
+        for(size_t i=0; i< matrix.size(); i++){
+            std::vector<utils::RelationshipWeight> active_vector = matrix[i];
+            // wenn es mehrere Kanten mit maximalen bzw. minimalen Gewicht gibt, wird uniform zufällig entschieden. 
+            if (active_vector.size()>1){
+                std::uniform_int_distribution<int> dist(0,active_vector.size()-1);
+                active_relationship = active_vector[dist(rng)];
+                if(label.propertys[active_relationship.rel->from_node_id()] != label.propertys[active_relationship.rel->to_node_id()]){
+                    did_change_last_run = true;
+                    label.propertys[active_relationship.rel->from_node_id()] = label.propertys[active_relationship.rel->to_node_id()];
+                }
+            //sollte es nur eine maximale ausgehende Relationship(Kante) geben, wird diese gewählt.
+            }else if(active_vector.size() == 1){
+                active_relationship = active_vector[0];
+                if(label.propertys[active_relationship.rel->from_node_id()] != label.propertys[active_relationship.rel->to_node_id()]){
+                    did_change_last_run = true;
+                    label.propertys[active_relationship.rel->from_node_id()] = label.propertys[active_relationship.rel->to_node_id()];
+                }
+            }
+            //sollte es keine ausgehenden Kante geben, so wird dieser Knoten vernachlässigt.
         }
-          for(size_t i=0;i<futures.size();i++){
-          if (futures[i].get()){
-            did_change_last_run = true;
-          }
-        }
-        futures.clear();
         number_of_turns++;
     }
 
-     auto stop = std::chrono::high_resolution_clock::now();
+    auto stop = std::chrono::high_resolution_clock::now();
 
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); 
   
@@ -335,7 +203,67 @@ Node_Pool labelPropagation_parallel(graph_db_ptr& graph, std::string property, d
          << duration.count() << " microseconds" << std::endl;
 
     std::cout << "Schleife durchlaufen: " << number_of_turns << std::endl;
-    return node_pool;
+    return utils::LabelReturn(nodes, label);
+}
+//speedup idee: teile for schleife in 2 schleifen -> die äußere schleife parralelisieren (die zählt die kanzen Prozesse modulo, die innere Schleife wird nicht parallelisiert und läuft so durch-> prozesse müssen für kurze instruktionen nicht immer wechseln)
+utils::LabelReturn labelPropagation_parallel(graph_db_ptr& graph, std::string property, double default_value, bool max, int max_runs){
+    //initialisiere die benötigten Variablen
+    utils::PropertyTracker<node::id_t> label = utils::PropertyTracker<node::id_t>(graph->get_nodes()->as_vec().capacity(),0);
+    std::vector<node::id_t> nodes = {};
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    utils::RelationshipWeight active_relationship = utils::RelationshipWeight(nullptr,0);
+    bool did_change_last_run = true;
+    int number_of_turns = 0;
+    std::vector<std::vector<utils::RelationshipWeight>> matrix;
+
+    initialiseActiveNodesAndLabel(graph, nodes, label);
+
+    //bestimme ob Matrix mit maximalen oder minimalen Gewichten benötigt wird.
+    if(max){
+        matrix = create_max_weight_matrix(graph,nodes,property,default_value);
+    } else{
+        matrix = create_min_weight_matrix(graph,nodes,property,default_value);
+    }
+
+    auto start = std::chrono::high_resolution_clock::now();
+    while(did_change_last_run && (number_of_turns < max_runs)){
+        //randomisiere die Reihenfolge, in der die Knoten durchlaufen werden.
+        std::random_shuffle(matrix.begin(), matrix.end());
+        did_change_last_run = false;
+    #pragma omp parallel for 
+        for(size_t i=0; i< matrix.size(); i++){
+            std::vector<utils::RelationshipWeight> active_vector = matrix[i];
+            // wenn es mehrere Kanten mit maximalen bzw. minimalen Gewicht gibt, wird uniform zufällig entschieden. 
+            if (active_vector.size()>1){
+                std::uniform_int_distribution<int> dist(0,active_vector.size()-1);
+                active_relationship = active_vector[dist(rng)];
+                if(label.propertys[active_relationship.rel->from_node_id()] != label.propertys[active_relationship.rel->to_node_id()]){
+                    did_change_last_run = true;
+                    label.propertys[active_relationship.rel->from_node_id()] = label.propertys[active_relationship.rel->to_node_id()];
+                }
+            //sollte es nur eine maximale ausgehende Relationship(Kante) geben, wird diese gewählt.
+            }else if(active_vector.size() == 1){
+                active_relationship = active_vector[0];
+                if(label.propertys[active_relationship.rel->from_node_id()] != label.propertys[active_relationship.rel->to_node_id()]){
+                    did_change_last_run = true;
+                    label.propertys[active_relationship.rel->from_node_id()] = label.propertys[active_relationship.rel->to_node_id()];
+                }
+            }
+            //sollte es keine ausgehenden Kante geben, so wird dieser Knoten vernachlässigt.
+        }
+        number_of_turns++;
+    }
+
+    auto stop = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); 
+  
+    std::cout << "Time taken by function: "
+         << duration.count() << " microseconds" << std::endl;
+
+    std::cout << "Schleife durchlaufen: " << number_of_turns << std::endl;
+    return utils::LabelReturn(nodes, label);
 }
 
 utils::LabelReturn labelPropagation(graph_db_ptr& graph, std::string property, double default_value, bool max, int max_runs){
@@ -399,20 +327,20 @@ utils::LabelReturn labelPropagation(graph_db_ptr& graph, std::string property, d
     return utils::LabelReturn(nodes, label);
 }
 
-//ergebnis des Algo stimmt noch nicht ganz
-int main(){
 
+int main(){
+  
   //auto pool = graph_pool::open("./graph/pool"); 
   //auto graph = pool->open_graph("Big_Graph_Test"); 
   //auto graph = pool->open_graph("Label_Prop_Test");
 
-  auto pool = graph_pool::open("./graph/5000nodeGraph");
-  auto graph = pool->open_graph("5000nodeGraph");
+  auto pool = graph_pool::open("./graph/50000nodeGraph");
+  auto graph = pool->open_graph("50000nodeGraph");
 
     auto tx = graph->begin_transaction();
 
     auto start2 = std::chrono::high_resolution_clock::now();
-    Node_Pool label = labelPropagation_parallel(graph,"values",1.0,true,1000);
+    utils::LabelReturn label = labelPropagation_parallel(graph,"values",1.0,true,1000);
     auto stop2 = std::chrono::high_resolution_clock::now();
 
     auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - start2); 
@@ -428,13 +356,46 @@ int main(){
   
     std::cout << "Time taken by function: "
          << duration.count() << " microseconds" << std::endl; 
+    
+    auto start3 = std::chrono::high_resolution_clock::now();
+    utils::LabelReturn result3 = labelPropagation_SIMD(graph,"values",1.0,true, 1000);
+    auto stop3 = std::chrono::high_resolution_clock::now();
+
+    auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); 
+  
+    std::cout << "Time taken by function: "
+         << duration3.count() << " microseconds" << std::endl;
     /*
     for(size_t i=0; i<result.used_nodes.size(); i++){
       std::cout << graph->get_node_description(result.used_nodes[i]).properties.at("name") << "   Label:"<< result.label.propertys[i] << std::endl;
     }
-    std::cout << std::endl;
 
-    for(size_t i=0; i<label.size(); i++){
-      std::cout << graph->get_node_description(label.return_node_at(i)->getID()).properties.at("name") << "   Label:"<< label.return_node_at(i)->getLabel() << std::endl;
+    for(size_t i=0; i<label.used_nodes.size(); i++){
+      std::cout << graph->get_node_description(label.used_nodes[i]).properties.at("name") << "   Label:"<< label.label.propertys[i] << std::endl;
     }*/
+
+  //graph->abort_transaction();
+  //pool->close();
+  
+  //test();
+  //Label_Test();
+  //PageRank_Test();
+  //create_pool();
+  //create_data();
+  //pageRank_small_test_graph();
+  //pageRank_medium_test_graph();
+  //PageRank_example();
+  //create_different_label_testgraph();
+  //create_labelprop_testgraph();
+  //expand_test_graph();
+  //create_bigGraph();
+  return 0;
+}
+
+/*
+  ein pool muss erzeugt werden, bevor graphen darin gespeichert werden können
+*/
+void create_pool(){
+  auto pool = graph_pool::create("./graph/pool",838860800);
+  pool->close();
 }

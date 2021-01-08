@@ -17,3 +17,14 @@ test/obj_files/class_test.o
 test/obj_files/galois_test.o
 test/test_imp
 test/obj_files/test_imp.o
+test/graph/5000nodeGraph
+test/graph/10000nodeGraph
+test/graph/20000nodeGraph
+test/graph/30000nodeGraph
+test/graph/40000nodeGraph
+test/graph/50000nodeGraph
+test/obj_files/big_graph.o
+test/obj_files/test_omp.o
+test/big_graph
+test/test_omp
+test/test_par

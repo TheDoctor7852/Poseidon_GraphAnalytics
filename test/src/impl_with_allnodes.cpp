@@ -16,24 +16,24 @@ double convertBoostAnyToDouble(boost::any input){
 }
 
 utils::LabelReturn labelPropagation_parallel(graph_db_ptr& graph, std::string property, double default_value, bool max, int max_runs){
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  int did_change_last_run = true;
+  int count = 0;
+
   graph->parallel_nodes( [&] (node& n){
     graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any((int) n.id())}});
   });
-  return utils::LabelReturn();
-}
+  
+  while(count < max_runs && did_change_last_run){
 
-utils::LabelReturn labelPropagation(graph_db_ptr& graph, std::string property, double default_value, bool max, int max_runs){
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  did_change_last_run = false;
 
-  graph->nodes( [&] (node& n){
-    graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any((int) n.id())}});
-  });
-
-  graph->nodes( [&] (node& n) {
+  graph->parallel_nodes( [&] (node& n) {
     double max_value = std::numeric_limits<double>::min();
     std::vector<relationship*> vec = {};
-//SCHLEIFE MIT WHILE
+    int count = 0;
+  
     graph->foreach_from_relationship_of_node(n, [&] (relationship& r) {
       double weight = 0;
       if(graph->get_rship_description(r.id()).has_property(property)){
@@ -52,19 +52,89 @@ utils::LabelReturn labelPropagation(graph_db_ptr& graph, std::string property, d
 
     if(vec.size() > 1){
       std::uniform_int_distribution<int> dist(0,vec.size()-1);
-      graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any(graph->get_node_description(vec[dist(rng)]->to_node_id()).properties.at("id"))}});
+      relationship* r = vec[dist(rng)];
+      if(boost::any_cast<int>(graph->get_node_description(r->to_node_id()).properties.at("id")) != boost::any_cast<int>(graph->get_node_description(n.id()).properties.at("id"))){
+      did_change_last_run = true;
+      graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any(graph->get_node_description(r->to_node_id()).properties.at("id"))}});
+      }
     }else if(vec.size() == 1){
-      graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any(graph->get_node_description(vec[0]->to_node_id()).properties.at("id"))}});
+      relationship* r = vec[0];
+      graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any(graph->get_node_description(r->to_node_id()).properties.at("id"))}});
+      if(boost::any_cast<int>(graph->get_node_description(r->to_node_id()).properties.at("id")) != boost::any_cast<int>(graph->get_node_description(n.id()).properties.at("id"))){
+      did_change_last_run = true;
+      graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any(graph->get_node_description(r->to_node_id()).properties.at("id"))}});
+      }
     }
   });
+  count++;
+}
+  std::cout << "Schleife durchlaufen:  " << count << std::endl;
+  return utils::LabelReturn();
+
+  return utils::LabelReturn();
+}
+
+utils::LabelReturn labelPropagation(graph_db_ptr& graph, std::string property, double default_value, bool max, int max_runs){
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  int did_change_last_run = true;
+  int count = 0;
+
+  graph->nodes( [&] (node& n){
+    graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any((int) n.id())}});
+  });
+while(count < max_runs && did_change_last_run){
+
+  did_change_last_run = false;
+
+  graph->nodes( [&] (node& n) {
+    double max_value = std::numeric_limits<double>::min();
+    std::vector<relationship*> vec = {};
+    int count = 0;
+  
+    graph->foreach_from_relationship_of_node(n, [&] (relationship& r) {
+      double weight = 0;
+      if(graph->get_rship_description(r.id()).has_property(property)){
+        weight = convertBoostAnyToDouble(graph->get_rship_description(r.id()).properties.at(property));
+      } else{
+        // sollte die Kante nicht die Property haben, wird der übergebene default_value verwendet 
+        weight = default_value; 
+      }
+      if(weight > max_value){
+        max_value = weight;
+        vec = {&r};
+      } else if(weight == max_value){
+        vec.push_back(&r);
+      }
+    });
+
+    if(vec.size() > 1){
+      std::uniform_int_distribution<int> dist(0,vec.size()-1);
+      relationship* r = vec[dist(rng)];
+      if(boost::any_cast<int>(graph->get_node_description(r->to_node_id()).properties.at("id")) != boost::any_cast<int>(graph->get_node_description(n.id()).properties.at("id"))){
+      did_change_last_run = true;
+      graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any(graph->get_node_description(r->to_node_id()).properties.at("id"))}});
+      }
+    }else if(vec.size() == 1){
+      relationship* r = vec[0];
+      graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any(graph->get_node_description(r->to_node_id()).properties.at("id"))}});
+      if(boost::any_cast<int>(graph->get_node_description(r->to_node_id()).properties.at("id")) != boost::any_cast<int>(graph->get_node_description(n.id()).properties.at("id"))){
+      did_change_last_run = true;
+      graph->update_node(graph->node_by_id(n.id()),{{"id",boost::any(graph->get_node_description(r->to_node_id()).properties.at("id"))}});
+      }
+    }
+  });
+  count++;
+}
+  std::cout << "Schleife durchlaufen:  " << count << std::endl;
   return utils::LabelReturn();
 }
 
 int main(){
 
   auto pool = graph_pool::open("./graph/pool"); 
-  //auto graph = pool->open_graph("Big_Graph_Test"); 
-  auto graph = pool->open_graph("Label_Prop_Test");
+  auto graph = pool->open_graph("Big_Graph_Test"); 
+  //auto graph = pool->open_graph("Label_Prop_Test");
 
     auto tx = graph->begin_transaction();
 

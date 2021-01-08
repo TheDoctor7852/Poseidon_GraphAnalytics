@@ -304,9 +304,9 @@ struct Threaded_Thing2{
   }
 };
 
-utils::LabelReturn labelPropagation_parallel(graph_db_ptr& graph, std::string property, double default_value, bool max, int max_runs){
+utils::LabelReturn labelPropagation_parallel(graph_db_ptr& graph, std::string property, double default_value, bool max, int max_runs,int thread_count=std::thread::hardware_concurrency()){
     //initialisiere die benötigten Variablen
-    thread_pool pool = thread_pool();
+    thread_pool pool = thread_pool(thread_count);
     utils::PropertyTracker<node::id_t> label = utils::PropertyTracker<node::id_t>(graph->get_nodes()->as_vec().capacity(),0);
     std::vector<node::id_t> nodes = {};
     bool did_change_last_run = true;
@@ -324,11 +324,11 @@ utils::LabelReturn labelPropagation_parallel(graph_db_ptr& graph, std::string pr
     } else{
         matrix = create_min_weight_matrix(graph,nodes,property,default_value);
     }
-    for(size_t i=0; i<std::thread::hardware_concurrency(); i++){
-      if(i<(nodes.size() % std::thread::hardware_concurrency())){
-        thread_startAndEnd.push_back(thread_startAndEnd[i]+1+(nodes.size()/std::thread::hardware_concurrency()));
+    for(size_t i=0; i<thread_count; i++){
+      if(i<(nodes.size() % thread_count)){
+        thread_startAndEnd.push_back(thread_startAndEnd[i]+1+(nodes.size()/thread_count));
       } else{
-        thread_startAndEnd.push_back(thread_startAndEnd[i]+(nodes.size()/std::thread::hardware_concurrency()));
+        thread_startAndEnd.push_back(thread_startAndEnd[i]+(nodes.size()/thread_count));
       }
     }
 
@@ -563,15 +563,18 @@ void test() {
 }
 
 int main(){
-
-  auto pool = graph_pool::open("./graph/pool"); 
-  auto graph = pool->open_graph("Big_Graph_Test"); 
+  
+  //auto pool = graph_pool::open("./graph/pool"); 
+  //auto graph = pool->open_graph("Big_Graph_Test"); 
   //auto graph = pool->open_graph("Label_Prop_Test");
+
+  auto pool = graph_pool::open("./graph/50000nodeGraph");
+  auto graph = pool->open_graph("50000nodeGraph");
 
     auto tx = graph->begin_transaction();
 
     auto start2 = std::chrono::high_resolution_clock::now();
-    utils::LabelReturn label = labelPropagation_parallel(graph,"values",1.0,true,500);
+    utils::LabelReturn label = labelPropagation_parallel(graph,"values",1.0,true,10000);
     auto stop2 = std::chrono::high_resolution_clock::now();
 
     auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - start2); 
@@ -580,7 +583,7 @@ int main(){
          << duration2.count() << " microseconds" << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
-    utils::LabelReturn result = labelPropagation(graph,"values",1.0,true, 500);
+    utils::LabelReturn result = labelPropagation(graph,"values",1.0,true, 10000);
     auto stop = std::chrono::high_resolution_clock::now();
 
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); 
